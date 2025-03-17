@@ -1,1 +1,6 @@
 checkfiles
+need to get this setup going:
+1. Code the dsPIC30f4013 to connect with internet
+2. Setup a GSM module
+3. Setup flask server
+Components: dsPIC30F4013, WiFi module, GSM Module, Buzzer, Red LED, Green LED
