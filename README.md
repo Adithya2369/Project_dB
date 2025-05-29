@@ -28,6 +28,7 @@ This system lets you monitor urban noise levels in real time, check if they comp
  
     ```bash
 python app.py
+
 ---
 
 ## Quick Start Guide
