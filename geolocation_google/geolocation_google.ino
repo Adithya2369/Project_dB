@@ -4,21 +4,22 @@
 #include <WiFiClientSecure.h>
 
 // WiFi credentials
-char myssid[] = "adithya";         // your network SSID (name)
-char mypass[] = "00000000";        // your network password
+char myssid[] = "adithya";
+char mypass[] = "00000000";
 
 // Google Geolocation API credentials
 const char* Host = "www.googleapis.com";
 String thisPage = "/geolocation/v1/geolocate?key=";
-// !! IMPORTANT: Replace with your own API key and keep it secret !!
-String key = "AIzaSyC8krAosapmRizFAvxiqjH5KfDYa8lDHz0";  
+// !! Replace this with your own API key !!
+String key = "AIzaSyC8krAosapmRizFAvxiqjH5KfDYa8lDHz0";
 
 String jsonString = "{\n";
-
 double latitude = 0.0;
 double longitude = 0.0;
 double accuracy = 0.0;
-int more_text = 1; // set to 1 for more debug output
+int more_text = 1;
+
+String serverIP = "192.168.223.245"; // Flask server IP
 
 void setup() {
   Serial.begin(115200);
@@ -42,6 +43,13 @@ void setup() {
 }
 
 void loop() {
+  get_db();
+  delay(60000); // Run every 60 seconds
+}
+
+// ---------------------------------------------------------------------------------
+
+void get_db() {
   Serial.println("scan start");
   int n = WiFi.scanNetworks();
   Serial.println("scan done");
@@ -77,45 +85,38 @@ void loop() {
     Serial.println(jsonString);
   }
 
-  WiFiClientSecure client;
-  client.setInsecure(); // Bypass SSL certificate validation
+  // ---- HTTPS Client (Google API) ----
+  WiFiClientSecure secureClient;
+  secureClient.setInsecure(); // Disable SSL verification
 
   Serial.print("Requesting URL: ");
   Serial.println("https://" + String(Host) + thisPage + key);
 
-  if (client.connect(Host, 443)) {
+  if (secureClient.connect(Host, 443)) {
     Serial.println("Connected");
 
-    client.println("POST " + thisPage + key + " HTTP/1.1");
-    client.println("Host: " + String(Host));
-    client.println("Connection: close");
-    client.println("Content-Type: application/json");
-    client.println("User-Agent: ESP32");
-    client.print("Content-Length: ");
-    client.println(jsonString.length());
-    client.println();
-    client.print(jsonString);
+    secureClient.println("POST " + thisPage + key + " HTTP/1.1");
+    secureClient.println("Host: " + String(Host));
+    secureClient.println("Connection: close");
+    secureClient.println("Content-Type: application/json");
+    secureClient.println("User-Agent: ESP32");
+    secureClient.print("Content-Length: ");
+    secureClient.println(jsonString.length());
+    secureClient.println();
+    secureClient.print(jsonString);
 
-    // Wait for response
-    String response;
-    while (client.connected()) {
-      String line = client.readStringUntil('\n');
-      if (line == "\r" || line.length() == 0) {
-        break; // Headers ended
-      }
+    while (secureClient.connected()) {
+      String line = secureClient.readStringUntil('\n');
+      if (line == "\r" || line.length() == 0) break;
     }
 
-    // Read the body (may be chunked)
     String body;
-    while (client.available()) {
-      body += client.readString();
+    while (secureClient.available()) {
+      body += secureClient.readString();
     }
 
-    // Remove chunked encoding if present
     int jsonStart = body.indexOf('{');
-    if (jsonStart == -1) {
-      Serial.println("JSON start marker not found!");
-    } else {
+    if (jsonStart != -1) {
       String jsonBody = body.substring(jsonStart);
       if (more_text) {
         Serial.println("Raw JSON response:");
@@ -133,12 +134,14 @@ void loop() {
         Serial.print("JSON parse error: ");
         Serial.println(error.c_str());
       }
+    } else {
+      Serial.println("JSON start marker not found!");
     }
   } else {
-    Serial.println("Connection failed.");
+    Serial.println("Connection to Google failed.");
   }
 
-  client.stop();
+  secureClient.stop();
   Serial.println("closing connection");
 
   Serial.print("Latitude = ");
@@ -148,28 +151,60 @@ void loop() {
   Serial.print("Accuracy = ");
   Serial.println(accuracy, 2);
 
-  HTTPClient http;
-  String url = "https://nominatim.openstreetmap.org/reverse?format=json&lat=" 
-               + String(latitude, 7) + "&lon=" + String(longitude, 7) + "&zoom=10&addressdetails=1";
-  http.begin(url);
-  http.setUserAgent("ESP32"); // Required by Nominatim usage policy
-  int httpCode = http.GET();
+  // ---- HTTPS Client (Nominatim API) ----
+  HTTPClient http_nominatim;
+  String url_location = "https://nominatim.openstreetmap.org/reverse?format=json&lat=" 
+                      + String(latitude, 7) + "&lon=" + String(longitude, 7)
+                      + "&zoom=10&addressdetails=1";
 
+  http_nominatim.begin(secureClient, url_location);
+  http_nominatim.setUserAgent("ESP32"); // Required by Nominatim
+  int httpCode = http_nominatim.GET();
+
+  String state_district = "Unknown";
   if (httpCode > 0) {
-    String payload = http.getString();
+    String payload = http_nominatim.getString();
     DynamicJsonDocument doc(4096);
     DeserializationError error = deserializeJson(doc, payload);
     if (!error) {
-      String stateDistrict = doc["address"]["state_district"] | "Unknown";
+      state_district = doc["address"]["state_district"] | "Unknown";
       Serial.print("state_district: ");
-      Serial.println(stateDistrict);
+      Serial.println(state_district);
     } else {
-      Serial.println("JSON parse error");
+      Serial.println("Nominatim JSON parse error");
     }
   } else {
-    Serial.println("HTTP request failed");
+    Serial.println("Nominatim request failed");
   }
-  http.end();
+  http_nominatim.end();
 
-  delay(60000); // Run every 60 seconds
+  // ---- HTTP Client (Flask Server) ----
+  WiFiClient plainClient;
+  HTTPClient http_flask;
+
+  String locationQuery = state_district;
+  locationQuery.toLowerCase();
+  locationQuery.replace(" ", "%20");
+  String url_flask = "http://" + serverIP + ":5000/info?location=" + locationQuery;
+
+  http_flask.begin(plainClient, url_flask);
+  httpCode = http_flask.GET();
+
+  if (httpCode > 0) {
+    String payload = http_flask.getString();
+    DynamicJsonDocument doc(512);
+    DeserializationError error = deserializeJson(doc, payload);
+    if (!error) {
+      int allowedDB = doc["allowed_dB"];
+      Serial.print("Allowed dB at ");
+      Serial.print(state_district);
+      Serial.print(": ");
+      Serial.println(allowedDB);
+    } else {
+      Serial.println("Failed to parse JSON from Flask");
+    }
+  } else {
+    Serial.println("Failed to contact Flask API");
+  }
+  http_flask.end();
 }
