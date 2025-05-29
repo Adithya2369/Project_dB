@@ -16,7 +16,7 @@ This system lets you monitor urban noise levels in real time, check if they comp
 
 - **Gateway (ESP32):**  
   - Determines its city using WiFi MAC addresses and Google Cloud Platform (GCP) Geolocation APIs (no GPS needed).
-  - Fetches the current noise threshold for that city from a cloud server.
+  - Fetches the current noise threshold for that city from a cloud server based of flask `app.py`.
   - Sends the threshold to all connected edge nodes.
   - Receives alerts from nodes if the noise is too high and can escalate them to authorities or log them in the cloud.
 
@@ -24,7 +24,10 @@ This system lets you monitor urban noise levels in real time, check if they comp
   - Maintains a database mapping cities to their legal noise limits.
   - Provides endpoints for threshold retrieval and alert logging.
   - Can be updated remotely to reflect new regulations.
-
+  - To make the server live and start receiving data, you need to run `app.py`.
+ 
+    ```bash
+python app.py
 ---
 
 ## Quick Start Guide
