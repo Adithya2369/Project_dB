@@ -90,6 +90,13 @@ This system lets you monitor urban noise levels in real time, check if they comp
 ---
 
 ## Example Thresholds Database (`thresholds.json`)
+{
+    "mumbai": 75,
+    "delhi": 70,
+    "bangalore": 68,
+    "hyderabad": 72,
+    "chennai": 70,
+}
 
 -------------------------------------------------------------------
 
