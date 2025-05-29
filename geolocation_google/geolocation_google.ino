@@ -148,5 +148,28 @@ void loop() {
   Serial.print("Accuracy = ");
   Serial.println(accuracy, 2);
 
+  HTTPClient http;
+  String url = "https://nominatim.openstreetmap.org/reverse?format=json&lat=" 
+               + String(latitude, 7) + "&lon=" + String(longitude, 7) + "&zoom=10&addressdetails=1";
+  http.begin(url);
+  http.setUserAgent("ESP32"); // Required by Nominatim usage policy
+  int httpCode = http.GET();
+
+  if (httpCode > 0) {
+    String payload = http.getString();
+    DynamicJsonDocument doc(4096);
+    DeserializationError error = deserializeJson(doc, payload);
+    if (!error) {
+      String stateDistrict = doc["address"]["state_district"] | "Unknown";
+      Serial.print("state_district: ");
+      Serial.println(stateDistrict);
+    } else {
+      Serial.println("JSON parse error");
+    }
+  } else {
+    Serial.println("HTTP request failed");
+  }
+  http.end();
+
   delay(60000); // Run every 60 seconds
 }
