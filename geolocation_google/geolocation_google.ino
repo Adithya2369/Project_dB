@@ -11,7 +11,7 @@ char mypass[] = "00000000";        // your network password
 const char* Host = "www.googleapis.com";
 String thisPage = "/geolocation/v1/geolocate?key=";
 // !! IMPORTANT: Replace with your own API key and keep it secret !!
-String key = "YOUR_API_KEY_HERE";  
+String key = "AIzaSyC8krAosapmRizFAvxiqjH5KfDYa8lDHz0";  
 
 String jsonString = "{\n";
 
