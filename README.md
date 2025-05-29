@@ -89,7 +89,9 @@ This system lets you monitor urban noise levels in real time, check if they comp
 
 ---
 
-## Example Thresholds Database (`thresholds.json`)
+## Example Thresholds Database (`allowed_db_levels.json`)
+
+```json
 {
     "mumbai": 75,
     "delhi": 70,
@@ -97,7 +99,7 @@ This system lets you monitor urban noise levels in real time, check if they comp
     "hyderabad": 72,
     "chennai": 70,
 }
-
+```
 -------------------------------------------------------------------
 
 *You can update this remotely to reflect new regulations or add new cities.*
@@ -131,6 +133,7 @@ This system lets you monitor urban noise levels in real time, check if they comp
 ## Support
 
 For setup help, bug reports, or feature requests, please open an issue in this repository.
+Please note that you have to use your own API key generated from [console.google.cloud](https://console.cloud.google.com/)
 
 ---
 
