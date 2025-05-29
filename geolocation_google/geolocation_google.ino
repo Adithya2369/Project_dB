@@ -1,17 +1,17 @@
-//this code is correct but will not give the desired output, because the billing is not enabled in the google cloud console
-
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <WiFiClientSecure.h>
 
+// WiFi credentials
 char myssid[] = "adithya";         // your network SSID (name)
-char mypass[] = "00000000";         // your network password
+char mypass[] = "00000000";        // your network password
 
-//Credentials for Google GeoLocation API...
+// Google Geolocation API credentials
 const char* Host = "www.googleapis.com";
 String thisPage = "/geolocation/v1/geolocate?key=";
-String key = "AIzaSyC8krAosapmRizFAvxiqjH5KfDYa8lDHz0";
+// !! IMPORTANT: Replace with your own API key and keep it secret !!
+String key = "YOUR_API_KEY_HERE";  
 
 String jsonString = "{\n";
 
@@ -54,27 +54,7 @@ void loop() {
   Serial.print(n);
   Serial.println(" networks found...");
 
-  if (more_text) {
-    Serial.println("{");
-    Serial.println("\"homeMobileCountryCode\": 234,");
-    Serial.println("\"homeMobileNetworkCode\": 27,");
-    Serial.println("\"radioType\": \"gsm\",");
-    Serial.println("\"carrier\": \"Vodafone\",");
-    Serial.println("\"wifiAccessPoints\": [");
-
-    for (int i = 0; i < n; ++i) {
-      Serial.println("{");
-      Serial.print("\"macAddress\" : \"");
-      Serial.print(WiFi.BSSIDstr(i));
-      Serial.println("\",");
-      Serial.print("\"signalStrength\": ");
-      Serial.println(WiFi.RSSI(i));
-      Serial.println(i < n - 1 ? "}," : "}");
-    }
-    Serial.println("]");
-    Serial.println("}");
-  }
-
+  // Build JSON payload
   jsonString = "{\n";
   jsonString += "\"homeMobileCountryCode\": 234,\n";
   jsonString += "\"homeMobileNetworkCode\": 27,\n";
@@ -91,6 +71,11 @@ void loop() {
 
   jsonString += "]\n";
   jsonString += "}\n";
+
+  if (more_text) {
+    Serial.println("JSON Payload:");
+    Serial.println(jsonString);
+  }
 
   WiFiClientSecure client;
   client.setInsecure(); // Bypass SSL certificate validation
@@ -111,27 +96,43 @@ void loop() {
     client.println();
     client.print(jsonString);
 
-    delay(500);
-
+    // Wait for response
     String response;
+    while (client.connected()) {
+      String line = client.readStringUntil('\n');
+      if (line == "\r" || line.length() == 0) {
+        break; // Headers ended
+      }
+    }
+
+    // Read the body (may be chunked)
+    String body;
     while (client.available()) {
-      response += client.readStringUntil('\n');
+      body += client.readString();
     }
 
-    if (more_text) {
-      Serial.println(response);
-    }
-
-    DynamicJsonDocument doc(1024);
-    DeserializationError error = deserializeJson(doc, response);
-
-    if (!error) {
-      latitude = doc["location"]["lat"] | 0.0;
-      longitude = doc["location"]["lng"] | 0.0;
-      accuracy = doc["accuracy"] | 0.0;
+    // Remove chunked encoding if present
+    int jsonStart = body.indexOf('{');
+    if (jsonStart == -1) {
+      Serial.println("JSON start marker not found!");
     } else {
-      Serial.print("JSON parse error: ");
-      Serial.println(error.c_str());
+      String jsonBody = body.substring(jsonStart);
+      if (more_text) {
+        Serial.println("Raw JSON response:");
+        Serial.println(jsonBody);
+      }
+
+      DynamicJsonDocument doc(512);
+      DeserializationError error = deserializeJson(doc, jsonBody);
+
+      if (!error) {
+        latitude = doc["location"]["lat"].as<double>();
+        longitude = doc["location"]["lng"].as<double>();
+        accuracy = doc["accuracy"].as<double>();
+      } else {
+        Serial.print("JSON parse error: ");
+        Serial.println(error.c_str());
+      }
     }
   } else {
     Serial.println("Connection failed.");
@@ -141,11 +142,11 @@ void loop() {
   Serial.println("closing connection");
 
   Serial.print("Latitude = ");
-  Serial.println(latitude, 6);
+  Serial.println(latitude, 7);
   Serial.print("Longitude = ");
-  Serial.println(longitude, 6);
+  Serial.println(longitude, 7);
   Serial.print("Accuracy = ");
-  Serial.println(accuracy);
+  Serial.println(accuracy, 2);
 
   delay(60000); // Run every 60 seconds
 }
