@@ -25,9 +25,17 @@ This system lets you monitor urban noise levels in real time, check if they comp
   - Provides endpoints for threshold retrieval and alert logging.
   - Can be updated remotely to reflect new regulations.
   - To make the server live and start receiving data, you need to run `app.py`.
+
+```
+bash
+    python app.py
+    
+```
+
  
-    ```bash python app.py
-  - Visit the url [http://<device-ip>:5000/info?location=Delhi](http://<device-ip>:5000/info?location=Delhi)
+    
+  - Visit the url `http://<device-ip>:5000/info?location=Delhi`
+
 ---
 
 ## Quick Start Guide
