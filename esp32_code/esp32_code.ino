@@ -196,9 +196,11 @@ void get_db() {
       Serial.printf("Allowed dB at %s: %d\n", state_district.c_str(), allowedDB);
     } else {
       Serial.println("Error parsing Flask response.");
+      int allowedDB = 75;
     }
   } else {
     Serial.println("Failed to contact Flask server.");
+    int allowedDB = 75;
   }
 
   http.end();
